@@ -1,0 +1,14 @@
+{
+  "current_name": "Jana Rekittke",
+  "current_email": "jana@rekittke.name",
+
+  "git": {
+    "github": {
+      "user": "beanqueen"
+    }
+  },
+
+  "run_list": [
+    "role[workstation]"
+  ]
+}

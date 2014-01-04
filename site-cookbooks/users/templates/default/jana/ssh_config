@@ -1,0 +1,19 @@
+ForwardAgent yes
+ForwardX11Trusted yes
+HashKnownHosts no
+
+Host testc
+HostName test.chariteam.de
+User jana
+
+Host katsching
+HostName dev.spline.de
+User jana
+
+Host cafe
+HostName cafe.noova.de
+User jana
+
+Host corncobs
+HostName 46.16.73.192
+User jana
