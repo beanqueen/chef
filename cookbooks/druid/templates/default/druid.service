@@ -1,0 +1,18 @@
+[Unit]
+Description=%p %i
+After=network.target
+
+[Service]
+ExecStart=/bin/bash -c "/var/app/druid/bin/%p"
+User=druid
+Group=druid
+SyslogIdentifier=%p
+OOMScoreAdjust=-1
+<% if @service != "middleManager" %>
+Nice=-5
+IOSchedulingPriority=2
+<% end %>
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -6,26 +6,15 @@ nginx_default_use_flags = %w(
   -syslog
   aio
   nginx_modules_http_gzip_static
+  nginx_modules_http_headers_more
+  nginx_modules_http_map
+  nginx_modules_http_metrics
   nginx_modules_http_realip
   nginx_modules_http_stub_status
-  nginx_modules_http_metrics
 )
 
 portage_package_use "www-servers/nginx" do
   use(nginx_default_use_flags + node[:nginx][:use_flags])
-end
-
-group "nginx" do
-  gid 82
-  append true
-end
-
-user "nginx" do
-  uid 82
-  gid 82
-  home "/dev/null"
-  shell "/sbin/nologin"
-  comment "added by portage for nginx"
 end
 
 package "www-servers/nginx"
@@ -88,14 +77,4 @@ systemd_unit "nginx.service"
 
 service "nginx" do
   action [:enable, :start]
-end
-
-if ganymed?
-  nginx_server "status" do
-    template "status.conf"
-  end
-
-  ganymed_collector "nginx" do
-    source "nginx.rb"
-  end
 end

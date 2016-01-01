@@ -1,0 +1,26 @@
+{
+  "name": "base",
+  "description": "base role for all nodes",
+  "run_list": [
+    "recipe[ohai]",
+    "recipe[base]",
+    "recipe[openssl]",
+    "recipe[ssh::server]",
+    "recipe[bash]",
+    "recipe[git]",
+    "recipe[vim]",
+    "recipe[chef::client]",
+    "recipe[duply]",
+    "recipe[htop]",
+    "recipe[hwraid]",
+    "recipe[lftp]",
+    "recipe[lib_users]",
+    "recipe[mdadm]",
+    "recipe[postfix::satelite]",
+    "recipe[python]",
+    "recipe[shorewall]",
+    "recipe[smart]",
+    "recipe[tmux]",
+    "recipe[watchdog]"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "hadoop2-historyserver",
+  "run_list": [
+    "role[base]",
+    "recipe[hadoop2::historyserver]"
+  ]
+}

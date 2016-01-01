@@ -1,7 +1,4 @@
-actions :create, :delete
+actions :create
 default_action :create
 
-def initialize(*args)
-  super
-  @run_context.include_recipe("portage::layman")
-end
+attribute :repository, kind_of: String, required: true

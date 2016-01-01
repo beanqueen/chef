@@ -23,6 +23,8 @@ action :create do
     export USER=#{rvm[:user]}
     export HOME=#{rvm[:homedir]}
 
+    gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+
     tmpfile=$(mktemp)
     curl -s -L -k https://get.rvm.io -o ${tmpfile}
     chmod +x ${tmpfile}
@@ -30,7 +32,12 @@ action :create do
     rm -f ${tmpfile}
     EOS
 
-    not_if { ::File.read("#{rvm[:path]}/VERSION").split.first == rvm[:version] rescue false }
+    if new_resource.update
+      not_if { ::File.read("#{rvm[:path]}/VERSION").split.first == rvm[:version] rescue false }
+    else
+      not_if { ::File.exist?("#{rvm[:path]}/VERSION") }
+    end
+
     user rvm[:user]
     group rvm[:group]
     environment(bash_env)

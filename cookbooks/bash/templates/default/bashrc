@@ -18,6 +18,10 @@ elif [[ -r /usr/local/bin/virtualenvwrapper.sh ]]; then
 	source /usr/local/bin/virtualenvwrapper.sh
 fi
 
+# set proper Go path
+export GOPATH="${HOME}/.go"
+export PATH="${HOME}/.go/bin:${PATH}"
+
 # everything else is for interactive shells only
 [[ $- != *i* ]] && return
 
@@ -25,10 +29,10 @@ _BASHRC_DIR="${_BASHRC_DIR:-<%= node[:bash][:rcdir] %>}"
 
 # make sure all important paths are in PATH
 <% if mac_os_x? %>
-export PATH="~/bin:$(brew --prefix coreutils)/libexec/gnubin:/usr/local/sbin:/usr/local/bin:/opt/X11/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH="~/bin:$(brew --prefix coreutils)/libexec/gnubin:${PATH}"
 alias find="/usr/local/bin/gfind"
 <% else %>
-export PATH="${PATH}:~/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH="~/bin:${PATH}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 <% end %>
 
 source "${_BASHRC_DIR}/detect.sh"
@@ -63,11 +67,11 @@ fi
 # keychain for ssh
 if [[ $USER != root ]]; then
 	if type -P keychain >/dev/null; then
-		if [[ -r ~/.ssh/id_dsa ]]; then
-			eval `keychain --eval --quiet ~/.ssh/id_dsa`
-		fi
 		if [[ -r ~/.ssh/id_rsa ]]; then
 			eval `keychain --eval --quiet ~/.ssh/id_rsa`
+		fi
+		if [[ -r ~/.ssh/id_ed25519 ]]; then
+			eval `keychain --eval --quiet ~/.ssh/id_ed25519`
 		fi
 	fi
 fi
@@ -184,7 +188,9 @@ serve() {
 alias vi="vim"
 
 # replace reboot by systemctl reboot
-alias reboot="systemctl reboot"
+if [[ -x /usr/bin/systemctl ]]; then
+	alias reboot="systemctl reboot"
+fi
 
 # load local bashrc if it exists
 if [[ -e ${HOME}/.bashrc.local ]]; then

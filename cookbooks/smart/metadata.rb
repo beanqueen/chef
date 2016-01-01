@@ -1,12 +1,11 @@
 # encoding: utf-8
 
+name "smart"
 description "S.M.A.R.T. is a monitoring system for computer hard disk drives"
 
 maintainer "Benedikt Böhm"
 maintainer_email "bb@xnull.de"
 license "Apache v2.0"
-
-version "3.4.1"
 
 supports "debian"
 supports "gentoo"

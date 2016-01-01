@@ -1,5 +1,11 @@
 if gentoo?
   package "net-analyzer/nrpe"
+
+  group "systemd-journal-#{rrand}" do
+    group_name "systemd-journal"
+    members "nagios"
+    append true
+  end
 elsif debian_based?
   package "nagios-nrpe-server"
 end
@@ -23,6 +29,7 @@ end
 systemd_unit "nrpe.service"
 
 service "nrpe" do
+  service_name "nagios-nrpe-server" if debian_based?
   action [:enable, :start]
   supports [:reload]
 end

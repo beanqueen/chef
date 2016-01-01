@@ -1,3 +1,0 @@
-<% hadoop_topology.each do |n, rack| %>
-<%= n[:primary_ipaddress] %> <%= rack %>
-<% end %>

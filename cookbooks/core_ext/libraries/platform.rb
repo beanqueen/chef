@@ -1,4 +1,8 @@
 module PlatformHelpers
+  def root?
+    Process.euid == 0
+  end
+
   def production?
     node.chef_environment == "production"
   end
@@ -41,6 +45,14 @@ module PlatformHelpers
 
   def mac_os_x?
     node[:platform] == "mac_os_x"
+  end
+
+  def vbox?
+    node[:virtualization] && node[:virtualization][:system] == "vbox" && node[:virtualization][:role] == "guest"
+  end
+
+  def lxc?
+    node[:virtualization] && node[:virtualization][:system] == "lxc" && node[:virtualization][:role] == "guest"
   end
 end
 

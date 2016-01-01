@@ -1,13 +1,14 @@
 if root?
-  file "/etc/portage/package.mask/chef-app-portage-eix-0-28" do
-    action :delete
+  package "sys-apps/portage"
+
+  template "/usr/share/portage/config/repos.conf" do
+    source "repos.conf"
+    owner "root"
+    group "root"
+    mode "0644"
   end
 
-  package "sys-apps/portage" do
-    action :upgrade
-  end
-
-  %w(eix elogv gentoolkit gentoolkit-dev portage-utils).each do |pkg|
+  %w(eix elogv gentoolkit portage-utils).each do |pkg|
     package "app-portage/#{pkg}"
   end
 
@@ -49,13 +50,27 @@ if root?
 
   file "/etc/make.profile" do
     action :delete
+    manage_symlink_source false
   end
 
-  link "/etc/portage/make.profile" do
-    to node[:portage][:profile]
+  file "/etc/portage/make.profile" do
+    action :delete
+    manage_symlink_source false
+    only_if { File.symlink?("/etc/portage/make.profile") }
   end
 
-  include_recipe "portage::layman"
+  directory "/etc/portage/make.profile" do
+    owner "root"
+    group "root"
+    mode "0755"
+  end
+
+  file "/etc/portage/make.profile/parent" do
+    content "#{node[:portage][:profile]}\n#{node[:portage][:overlays].map { |name, path| "#{path}/profiles/#{name}" }.join("\n")}"
+    owner "root"
+    group "root"
+    mode "0644"
+  end
 
   directory node[:portage][:confdir] do
     owner "root"
@@ -111,13 +126,6 @@ if root?
     only_if { File.directory?("#{node[:portage][:confdir]}/repos.conf") }
   end
 
-  template "/usr/share/portage/config/repos.conf" do
-    source "repos.conf"
-    owner "root"
-    group "root"
-    mode "0644"
-  end
-
   %w(
     /etc/logrotate.d/portage
     /etc/logrotate.d/elog-save-summary
@@ -133,34 +141,14 @@ if root?
     backup 0
   end
 
-  cron_weekly "eclean-distfiles" do
-    command "exec /usr/bin/eclean -d -n -q distfiles"
+  systemd_timer "eclean-distfiles" do
+    schedule %w(OnCalendar=weekly)
+    unit(command: "/usr/bin/eclean -d -n -q distfiles")
   end
 
-  cron_weekly "eclean-packages" do
-    command "exec /usr/bin/eclean -d -n -q packages"
-  end
-
-  execute "eix-update" do
-    not_if do
-      check_files = Dir.glob("/var/lib/layman/*/.git/index")
-      check_files << "/usr/portage/metadata/timestamp.chk"
-
-      if File.exist?("/var/cache/eix/portage.eix")
-        cache_file = "/var/cache/eix/portage.eix"
-      else
-        cache_file = "/var/cache/eix"
-      end
-
-      FileUtils.uptodate?(cache_file, check_files)
-    end
-  end
-
-  ruby_block "update-packages-cache" do
-    action :nothing
-    block do
-      Gentoo::Portage::Emerge.packages_cache_from_eix!
-    end
+  systemd_timer "eclean-packages" do
+    schedule %w(OnCalendar=weekly)
+    unit(command: "/usr/bin/eclean -d -n -q packages")
   end
 
   %w(
@@ -176,15 +164,6 @@ if root?
       owner "root"
       group "root"
       mode "0755"
-    end
-  end
-
-  if zenops_mirror_node
-    rsync_module "portage-packages" do
-      path "/usr/portage/packages"
-      hosts_allow zenops_mirror_node[:primary_ipaddress]
-      uid "nobody"
-      gid "nobody"
     end
   end
 end

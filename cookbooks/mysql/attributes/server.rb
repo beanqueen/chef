@@ -2,6 +2,11 @@ include_attribute "base"
 
 default_unless[:contacts][:mysql] = "root@#{node[:fqdn]}"
 
+# connection info (overriden in server recipe)
+default[:mysql][:connection][:host] = 'localhost'
+default[:mysql][:connection][:username] = 'root'
+default[:mysql][:connection][:password] = File.read("/root/.my.cnf").split("\n").find { |x| x =~ /^password/ }.split.last rescue ''
+
 # paths
 default[:mysql][:server][:sharedstatedir] = "/usr/share/mysql"
 default[:mysql][:server][:sysconfdir] = "/etc/mysql"
@@ -22,7 +27,7 @@ default[:mysql][:server][:bind_address] = "0.0.0.0"
 default[:mysql][:server][:skip_innodb] = false
 
 # Replication & Binary Log
-default[:mysql][:server][:server_id] = IPAddr.new(node[:primary_ipaddress]).to_i
+default[:mysql][:server][:server_id] = IPAddr.new(node[:ipaddress]).to_i
 default[:mysql][:server][:slave_enabled] = false
 default[:mysql][:server][:active_master] = false
 default[:mysql][:server][:log_bin] = true
@@ -35,10 +40,10 @@ default[:mysql][:server][:replicate_do_table] = false
 default[:mysql][:server][:slave_transaction_retries] = 10
 default[:mysql][:server][:auto_increment_increment] = 1
 default[:mysql][:server][:auto_increment_offset] = 1
-default[:mysql][:server][:binlog_format] = 'statement'
+default[:mysql][:server][:binlog_format] = "row"
 
 # General Performance Options
-default[:mysql][:server][:table_open_cache] = "1024"
+default[:mysql][:server][:table_open_cache] = "64"
 default[:mysql][:server][:table_definition_cache] = 4 * node[:mysql][:server][:table_open_cache].to_i
 default[:mysql][:server][:open_files_limit] = 3 * node[:mysql][:server][:table_open_cache].to_i
 default[:mysql][:server][:tmp_table_size] = "64M"
@@ -46,9 +51,9 @@ default[:mysql][:server][:max_heap_table_size] = node[:mysql][:server][:tmp_tabl
 default[:mysql][:server][:group_concat_max_len] = "1024"
 
 # Client Connection Optimization
-default[:mysql][:server][:max_connections] = "128"
+default[:mysql][:server][:max_connections] = "512"
 default[:mysql][:server][:thread_cache_size] = node[:mysql][:server][:max_connections]
-default[:mysql][:server][:max_allowed_packet] = "16M"
+default[:mysql][:server][:max_allowed_packet] = "64M"
 default[:mysql][:server][:wait_timeout] = "28800"
 default[:mysql][:server][:connect_timeout] = "10"
 

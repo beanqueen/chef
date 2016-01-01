@@ -1,12 +1,11 @@
 # encoding: utf-8
 
+name "ssh"
 description "OpenSSH client and server"
 
 maintainer "Benedikt Böhm"
 maintainer_email "bb@xnull.de"
 license "Apache v2.0"
-
-version "4.4.0"
 
 supports "debian"
 supports "gentoo"

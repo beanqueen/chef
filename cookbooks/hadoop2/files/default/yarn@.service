@@ -1,0 +1,15 @@
+[Unit]
+Description=YARN %I
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hadoop2
+Group=hadoop2
+Environment=TZ=UTC
+ExecStart=/var/app/hadoop2/current/bin/yarn %I
+SyslogIdentifier=yarn-%I
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

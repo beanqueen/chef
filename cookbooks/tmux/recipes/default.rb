@@ -5,8 +5,13 @@ elsif debian_based?
   package "tmux"
 
 elsif mac_os_x?
-  package "tmux"
+  homebrew_package "tmux"
 
+end
+
+template "#{node[:script_path]}/tmux-vim-select-pane" do
+  source "tmux-vim-select-pane.sh"
+  mode "0755"
 end
 
 template node[:tmux][:configfile] do

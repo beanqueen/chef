@@ -1,20 +1,8 @@
 if gentoo?
   if root?
-    portage_package_use "sys-apps/dbus" do
-      if %x(qlist -ICe sys-apps/systemd).chomp == ""
-        use %w(-systemd)
-      else
-        use %w(systemd)
-      end
-    end
-
-    portage_package_use "sys-apps/systemd" do
-      use %w(python)
-    end
-
     package "sys-apps/systemd"
 
-    node.default[:portage][:USE] += %w(systemd)
+    include_recipe "systemd::cleanup"
 
     # by default, boot into multi-user.target
     service "#{node[:systemd][:target]}.target" do
@@ -29,21 +17,35 @@ if gentoo?
       mode "0644"
     end
 
-    # journal
-    systemd_unit "systemd-journald.socket"
-
-    service "systemd-journald.service" do
-      action :nothing
-      provider Chef::Provider::Service::Systemd
-      only_if { systemd_running? }
+    cookbook_file "/usr/lib/tmpfiles.d/etc.conf" do
+      source "etc.conf"
+      owner "root"
+      group "root"
+      mode "0644"
     end
 
+    # and shutdown on SIGPWR
+    link "/etc/systemd/system/sigpwr.target" do
+      to "/usr/lib/systemd/system/poweroff.target"
+    end
+
+    # timesyncd
+    service "systemd-timesyncd.service" do
+      action [:enable]
+      provider Chef::Provider::Service::Systemd
+      only_if { systemd_running? && File.exist?("/usr/lib/systemd/system/systemd-timesyncd.service") }
+    end
+
+    execute "timedatectl set-ntp true" do
+      only_if { systemd_running? && File.exist?("/usr/lib/systemd/system/systemd-timesyncd.service") }
+    end
+
+    # journal
     template "/etc/systemd/journald.conf" do
       source "journald.conf"
       owner "root"
       group "root"
       mode "0644"
-      notifies :restart, "service[systemd-journald.service]"
     end
 
     # networking
@@ -54,29 +56,15 @@ if gentoo?
       mode "0644"
     end
 
-    link "/etc/ifup" do
-      to "/etc/ifup.eth0"
-      only_if { File.exist?("/etc/ifup.eth0") }
-    end
-
-    file "/etc/ifup" do
-      owner "root"
-      group "root"
-      mode "0644"
-      not_if { File.symlink?("/etc/ifup") }
-    end
-
-    file "/etc/ifdown" do
-      owner "root"
-      group "root"
-      mode "0644"
-    end
-
-    systemd_unit "network.service"
-
-    service "network.service" do
-      action :enable
+    service "systemd-networkd.service" do
+      action [:enable]
       provider Chef::Provider::Service::Systemd
+    end
+
+    service "systemd-networkd-wait-online.service" do
+      action [:enable]
+      provider Chef::Provider::Service::Systemd
+      only_if { File.exist?("/usr/lib/systemd/system/systemd-networkd-wait-online.service") }
     end
 
     service "sshd.service" do
@@ -85,6 +73,12 @@ if gentoo?
     end
 
     # modules
+    file "/etc/modules-load.d/dummy.conf" do
+      owner "root"
+      group "root"
+      mode "0644"
+    end
+
     service "systemd-modules-load.service" do
       action :nothing # just a callback
     end
@@ -97,6 +91,53 @@ if gentoo?
 
     service "systemd-stop-user-sessions.service" do
       action :enable
+      provider Chef::Provider::Service::Systemd
+    end
+
+    # emulate crontab support
+    cookbook_file "/usr/lib/systemd/system-generators/systemd-crontab-generator" do
+      source "systemd-crontab-generator"
+      owner "root"
+      group "root"
+      mode "0755"
+    end
+
+    cookbook_file "/usr/lib/systemd/system/cron.target" do
+      source "cron.target"
+      owner "root"
+      group "root"
+      mode "0644"
+    end
+
+    cookbook_file "/usr/bin/systemd-crontab-update" do
+      source "systemd-crontab-update"
+      owner "root"
+      group "root"
+      mode "0755"
+    end
+
+
+    cookbook_file "/usr/bin/crontab" do
+      source "crontab"
+      owner "root"
+      group "root"
+      mode "0755"
+    end
+
+    directory "/var/spool/cron" do
+      owner "root"
+      group "root"
+      mode "0755"
+    end
+
+    file "/var/spool/cron/root" do
+      owner "root"
+      group "root"
+      mode "0644"
+    end
+
+    service "cron.target" do
+      action [:enable, :start]
       provider Chef::Provider::Service::Systemd
     end
   end
@@ -124,7 +165,7 @@ if nagios_client?
 
   nagios_service "SYSTEMD" do
     check_command "check_nrpe!check_systemd"
-    servicegroups "systemd"
+    servicegroups "system"
     env [:staging, :testing, :development]
     register systemd_running? ? "1" : "0"
   end

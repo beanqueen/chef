@@ -5,7 +5,7 @@ namespace :generate do
   desc "Generate a cookbook skeleton"
   task :cookbook do
     name = ask('Cookbook name: ') do |q|
-      q.validate = /^\w+$/
+      q.validate = /^[-\w]+$/
     end
 
     description = ask('Cookbook description: ')
@@ -16,19 +16,24 @@ namespace :generate do
     maintainer_email = %x(git config user.email).chomp
 
     b = binding()
-    erb = Erubis::Eruby.new(File.read(File.join(TEMPLATES_DIR, 'metadata.rb')))
 
     cb_path = File.join(COOKBOOKS_DIR, name)
-    FileUtils.mkdir_p(cb_path)
+    FileUtils.mkdir_p(File.join(cb_path, "attributes"))
+    FileUtils.mkdir_p(File.join(cb_path, "files/default"))
+    FileUtils.mkdir_p(File.join(cb_path, "libraries"))
+    FileUtils.mkdir_p(File.join(cb_path, "providers"))
+    FileUtils.mkdir_p(File.join(cb_path, "recipes"))
+    FileUtils.mkdir_p(File.join(cb_path, "resources"))
+    FileUtils.mkdir_p(File.join(cb_path, "templates/default"))
 
+    erb = Erubis::Eruby.new(File.read(File.join(TEMPLATES_DIR, 'metadata.rb')))
     File.open(File.join(cb_path, "metadata.rb"), "w") do |f|
       f.puts(erb.result(b))
     end
 
-    FileUtils.mkdir_p(File.join(cb_path, "recipes"))
-
-    %w(files templates).each do |d|
-      FileUtils.mkdir_p(File.join(cb_path, d, "default"))
+    erb = Erubis::Eruby.new(File.read(File.join(TEMPLATES_DIR, 'run_state.rb')))
+    File.open(File.join(cb_path, "libraries/run_state.rb"), "w") do |f|
+      f.puts(erb.result(b))
     end
 
     File.open(File.join(cb_path, "recipes", "default.rb"), "w") do |f|
@@ -36,33 +41,25 @@ namespace :generate do
     end
   end
 
-  desc "Generate the production environment"
-  task :env do
-    env = File.open(File.join(ENVIRONMENTS_DIR, "production.rb"), "w")
-    env.printf %{description "The production environment"\n\n}
-
-    cookbook_metadata.each do |cookbook, cookbook_path, metadata|
-      platforms = metadata.platforms.keys - CHEF_SOLO_PLATFORMS
-      version = metadata.version
-
-      next if platforms.empty?
-
-      env.printf %{cookbook %-20s "= %s"\n}, %{"#{cookbook}",}, version
-    end
-
-    env.close
-  end
-
   desc "Generate a default OpenVPN/Tunnelblick config"
-  task :tunnelblick do
-    remote = "chef." + URI.parse(Chef::Config[:chef_server_url]).host.split('.')[1..-1].join('.')
-    login = Chef::Config[:node_name]
+  task :tunnelblick, :login do |t, args|
+    args.with_defaults(login: Chef::Config[:node_name])
+
+    remote = "vpn." + URI.parse(Chef::Config[:chef_server_url]).host.split('.')[1..-1].join('.')
+    login = args.login
+
+    ENV["BATCH"] = "1"
+    ssl_args = Rake::TaskArguments.new([:cn], [login])
+    Rake::Task["ssl:do_cert"].execute(ssl_args)
 
     b = binding()
     erb = Erubis::Eruby.new(File.read(File.join(TEMPLATES_DIR, 'openvpn.conf')))
 
+    name = "#{$conf.company.name} VPN"
+    archive = "#{ROOT}/#{name} (#{login}).zip"
+
     tmpdir = Dir.mktmpdir
-    path = File.join(tmpdir, "#{COMPANY_NAME} VPN.tblk")
+    path = File.join(tmpdir, "#{name}.tblk")
     FileUtils.mkdir_p(path)
 
     File.open(File.join(path, "config.ovpn"), "w") do |f|
@@ -76,8 +73,11 @@ namespace :generate do
     FileUtils.cp(File.join(SSL_CERT_DIR, "#{login}.key"),
                  File.join(path, "#{login}.key"))
 
-    puts ">>> Configuration is at #{path}"
-    system("open '#{path}' || :")
+    Dir.chdir(tmpdir) do |path|
+      system("apack '#{archive}' '#{name}.tblk'")
+    end
+
+    puts ">>> Configuration is at #{archive}"
   end
 
 end

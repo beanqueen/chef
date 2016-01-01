@@ -4,14 +4,15 @@ require 'tempfile'
 
 namespace :ssl do
   desc "Initialize the OpenSSL CA"
-  task :init do
+  task :init, :domain do |t, args|
     FileUtils.mkdir_p(SSL_CERT_DIR)
     FileUtils.mkdir_p(File.join(SSL_CA_DIR, "crl"))
     FileUtils.mkdir_p(File.join(SSL_CA_DIR, "newcerts"))
     FileUtils.touch(File.join(SSL_CA_DIR, "index"))
 
+    cn = ""
     b = binding()
-    erb = Erubis::Eruby.new(File.read(SSL_CONFIG_FILE + ".erb"))
+    erb = Erubis::Eruby.new(File.read(File.join(TEMPLATES_DIR, 'openssl.cnf')))
 
     File.open(SSL_CONFIG_FILE, "w") do |f|
       f.puts(erb.result(b))
@@ -30,26 +31,22 @@ namespace :ssl do
     end
 
     unless File.exists?(File.join(SSL_CERT_DIR, "ca.crt"))
-      subject =  "/C=#{SSL_COUNTRY_NAME}"
-      subject += "/ST=#{SSL_STATE_NAME}"
-      subject += "/L=#{SSL_LOCALITY_NAME}"
-      subject += "/O=#{COMPANY_NAME}"
-      subject += "/OU=#{SSL_ORGANIZATIONAL_UNIT_NAME}"
+      subject =  "/C=#{$conf.ssl.country}"
+      subject += "/ST=#{$conf.ssl.state}"
+      subject += "/L=#{$conf.ssl.city}"
+      subject += "/O=#{$conf.company.name}"
+      subject += "/OU=#{$conf.ssl.unit}"
       subject += "/CN=Certificate Signing Authority"
-      subject += "/emailAddress=#{SSL_EMAIL_ADDRESS}"
+      subject += "/emailAddress=#{$conf.ssl.email}"
       sh("openssl req -config #{SSL_CONFIG_FILE} -new -nodes -x509 -days 3650 -subj '#{subject}' -newkey rsa:4096 -out #{SSL_CERT_DIR}/ca.crt -keyout #{SSL_CA_DIR}/ca.key")
       sh("openssl ca -config #{SSL_CONFIG_FILE} -gencrl -out #{SSL_CERT_DIR}/ca.crl")
     end
 
-    if chef_domain != ""
-      ENV['BATCH'] = "1"
-      args = Rake::TaskArguments.new([:cn], ["*.#{chef_domain}"])
-      Rake::Task["ssl:do_cert"].execute(args)
-      knife :cookbook_upload, ["openssl", "--force"]
-    end
+    ENV['BATCH'] = "1"
+    args = Rake::TaskArguments.new([:cn], ["*.#{args.domain}"])
+    Rake::Task["ssl:do_cert"].execute(args)
   end
 
-  task :do_cert => [ :init ]
   task :do_cert, :cn do |t, args|
     cn = args.cn
     keyfile = cn.gsub("*", "wildcard")
@@ -85,13 +82,33 @@ namespace :ssl do
     end
 
     if ENV['BATCH'] != "1" and not Process.euid == 0
-      knife :cookbook_upload, ["openssl", "--force"]
+      knife :upload, ["cookbooks/certificates"]
     end
   end
 
   desc "Create a new SSL certificate"
   task :cert, :cn do |t, args|
     Rake::Task["ssl:do_cert"].execute(args)
+  end
+
+  desc "Sign a CSR with our CA"
+  task :sign, :cn do |t, args|
+    cn = args.cn
+    keyfile = cn.gsub("*", "wildcard")
+
+    FileUtils.mkdir_p(SSL_CERT_DIR)
+
+    unless File.exist?(File.join(SSL_CERT_DIR, "#{keyfile}.crt"))
+      puts("** Signing SSL Certificate Request for #{cn}")
+      sh("openssl ca -config #{SSL_CONFIG_FILE} -in /dev/stdin -out #{SSL_CERT_DIR}/#{keyfile}.crt")
+      sh("chmod 644 #{SSL_CERT_DIR}/#{keyfile}.crt")
+    else
+      puts("** SSL Certificate for #{cn} already exists, skipping.")
+    end
+
+    if ENV['BATCH'] != "1" and not Process.euid == 0
+      knife :upload, ["cookbooks/certificates"]
+    end
   end
 
   task :create_missing_certs do
@@ -104,12 +121,12 @@ namespace :ssl do
     end
 
     ENV['BATCH'] = old_batch
-    knife :cookbook_upload, ["openssl", "--force"]
+    knife :upload, ["cookbooks/certificates"]
   end
 
   desc "Revoke an existing SSL certificate"
   task :revoke, :cn do |t, args|
-    serial = %x(grep ^V.*CN=#{args.cn}\$ ca/index | awk '{print $3}').chomp
+    serial = %x(grep -P '^V\t.*CN=#{Regexp.escape(args.cn)}$' ca/index | awk '{print $3}').chomp
 
     if serial.empty?
       puts "can only revoke my own certificates. skipping #{args.cn} ..."
@@ -118,7 +135,7 @@ namespace :ssl do
       sh("openssl ca -config #{SSL_CONFIG_FILE} -gencrl -out #{SSL_CERT_DIR}/ca.crl")
       cn = args.cn.gsub("*", "wildcard")
       sh("rm #{SSL_CERT_DIR}/#{cn}.{csr,crt,key}")
-      knife :cookbook_upload, ['openssl', '--force']
+      knife :upload, ["cookbooks/certificates"] unless ENV["BATCH"]
     end
   end
 
@@ -128,9 +145,9 @@ namespace :ssl do
     ENV['BATCH'] = "1"
 
     Dir[SSL_CERT_DIR + "/*.crt"].each do |crt|
-      %x(#{TOPDIR}/cookbooks/openssl/files/default/check_ssl_cert -n -c #{crt})
+      %x(#{ROOT}/cookbooks/openssl/files/default/check_ssl_cert -n -c #{crt})
       if $?.exitstatus != 0
-        fqdn = File.basename(crt).gsub(/\.crt$/, '')
+        fqdn = File.basename(crt).gsub(/\.crt$/, '').gsub('wildcard', '*')
         args = Rake::TaskArguments.new([:cn], [fqdn])
         Rake::Task["ssl:revoke"].execute(args)
         Rake::Task["ssl:do_cert"].execute(args)
@@ -138,7 +155,7 @@ namespace :ssl do
     end
 
     ENV['BATCH'] = old_batch
-    knife :cookbook_upload, ["certificates"]
+    knife :upload, ["cookbooks/certificates"]
 
     sh("git add -A ca/ site-cookbooks/certificates || :")
     sh("git commit -q -m 'renew certificates' || :")

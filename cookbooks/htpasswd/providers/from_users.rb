@@ -7,12 +7,11 @@ use_inline_resources
 action :create do
   nr = new_resource
 
-  users = node.run_state[:users].select(&nr.query).map do |user|
+  users = node.users.select(&nr.query).map do |user|
     [user[:id], user[nr.password_field]]
   end
 
   htpasswd_file nr.path do
-    content content
     owner nr.owner
     group nr.group
     mode nr.mode

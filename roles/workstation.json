@@ -1,0 +1,18 @@
+{
+  "name": "workstation",
+  "description": "Developer Workstations",
+  "run_list": [
+    "recipe[ohai]",
+    "recipe[base]",
+    "recipe[bash]",
+    "recipe[git]",
+    "recipe[htop]",
+    "recipe[java]",
+    "recipe[lftp]",
+    "recipe[python]",
+    "recipe[rvm]",
+    "recipe[ssh]",
+    "recipe[tmux]",
+    "recipe[vim]"
+  ]
+}

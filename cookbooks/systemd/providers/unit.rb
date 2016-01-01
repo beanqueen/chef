@@ -4,7 +4,7 @@ action :create do
   if root?
     path = "/usr/lib/systemd/system/#{new_resource.name}"
 
-    directory "/usr/lib/systemd/system-#{rrand}" do
+    directory "/usr/lib/systemd/system" do
       path "/usr/lib/systemd/system"
       owner "root"
       group "root"
@@ -46,6 +46,12 @@ end
 
 action :delete do
   path = "/usr/lib/systemd/system/#{new_resource.name}"
+
+  execute "systemd-reload" do
+    command "systemctl --system daemon-reload"
+    action :nothing
+    only_if { systemd_running? }
+  end
 
   file path do
     action :delete

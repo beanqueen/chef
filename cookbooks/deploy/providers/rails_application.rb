@@ -9,7 +9,7 @@ action :create do
   rails_env = nr.rails_env || node.chef_environment
 
   template "#{path}/shared/config/unicorn.rb" do
-    source "rails/unicorn.rb"
+    source "rails/unicorn.rb.erb"
     cookbook "deploy"
     owner user[:name]
     group user[:group][:name]
@@ -48,6 +48,14 @@ action :create do
         code "bundle exec rake assets:precompile RAILS_ENV=#{rails_env}"
         cwd release_path
         user nr.user
+        only_if { nr.asset_pipeline }
+      end
+
+      rvm_shell "#{nr.user}-db:create" do
+        code "bundle exec rake db:create RAILS_ENV=#{rails_env}"
+        cwd release_path
+        user nr.user
+        only_if { nr.migrate && vbox? }
       end
 
       rvm_shell "#{nr.user}-db:migrate" do
@@ -55,6 +63,13 @@ action :create do
         cwd release_path
         user nr.user
         only_if { nr.migrate }
+      end
+
+      rvm_shell "#{nr.user}-db:seed" do
+        code "bundle exec rake db:seed RAILS_ENV=#{rails_env}"
+        cwd release_path
+        user nr.user
+        only_if { nr.seed }
       end
     end
 

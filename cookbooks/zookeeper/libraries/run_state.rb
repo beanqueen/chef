@@ -1,17 +1,15 @@
 module ZookeeperRunStateHelpers
-  def zookeeper_nodes(ensemble = nil)
-    ensemble ||= node[:zookeeper][:ensemble]
-    node.run_state[:nodes].select do |n|
-      n.role?("zookeeper") and
-      n[:zookeeper] and
-      n[:zookeeper][:ensemble] == ensemble
-    end
+  def zookeeper_nodes(cluster_name = node.cluster_name)
+    node.nodes.cluster(cluster_name).role("zookeeper")
   end
 
-  def zookeeper_url(ensemble = nil)
-    zookeeper_nodes(ensemble).map do |n|
-      "#{n[:primary_ipaddress]}:2181"
+  def zookeeper_connect(zk_root, cluster_name = node.cluster_name)
+    url = zookeeper_nodes(cluster_name).map do |n|
+      "#{n[:ipaddress]}:2181"
     end.join(',')
+    zk_root = zk_root.to_s.strip
+    url += "/" unless zk_root[0] == "/"
+    url += zk_root
   end
 end
 

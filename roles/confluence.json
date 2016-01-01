@@ -1,0 +1,8 @@
+{
+  "name": "confluence",
+  "description": "Atlassian Confluence",
+  "run_list": [
+    "recipe[mysql::server]",
+    "recipe[confluence]"
+  ]
+}

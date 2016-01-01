@@ -1,12 +1,11 @@
 # encoding: utf-8
 
+name "git"
 description "Git - the distributed version control system"
 
 maintainer "Benedikt Böhm"
 maintainer_email "bb@xnull.de"
 license "Apache v2.0"
-
-version "2.2.1"
 
 supports "debian"
 supports "gentoo"

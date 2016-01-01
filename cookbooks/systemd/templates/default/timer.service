@@ -1,0 +1,20 @@
+[Unit]
+Description=<%= @description %>
+
+[Service]
+Type=simple
+<% commands = [@command].flatten %>
+<% commands[0..-2].each do |cmd| %>
+ExecStartPre=<%= cmd %>
+<% end %>
+ExecStart=<%= commands.last %>
+<% if @timeout %>
+TimeoutStartSec=<%= @timeout %>
+<% end %>
+<% @environment.each do |key, value| %>
+Environment=<%= key %>=<%= value %>
+<% end %>
+WorkingDirectory=<%= @directory %>
+User=<%= @user %>
+Group=<%= @group %>
+SyslogIdentifier=%p

@@ -14,7 +14,7 @@ postgresql_database "gitlab_production" do
 end
 
 ## homedir
-homedir = "/var/app/gitlab"
+homedir = "/var/app/git"
 
 deploy_skeleton "git" do
   authorized_keys_for false
@@ -69,6 +69,7 @@ deploy_rails_application "git" do
   revision "6-2-stable"
 
   ruby_version "ruby-2.0.0-p247"
+  bundle_without %w(development test mysql)
 
   worker_processes node[:gitlab][:worker_processes]
   timeout node[:gitlab][:timeout]
@@ -106,6 +107,12 @@ service "gitlab-sidekiq" do
 end
 
 ## nginx proxy
+include_recipe "nginx"
+
+ssl_certificate "/etc/ssl/nginx/gitlab" do
+  cn node[:gitlab][:certificate]
+end
+
 nginx_server "gitlab" do
   template "nginx.conf"
   homedir homedir

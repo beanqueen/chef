@@ -1,12 +1,11 @@
 # encoding: utf-8
 
+name "nepal"
 description "Nepal - a web hosting control panel"
 
 maintainer "Benedikt Böhm"
 maintainer_email "bb@xnull.de"
 license "Apache v2.0"
-
-version "1.1.0"
 
 supports "gentoo"
 

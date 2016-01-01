@@ -1,4 +1,4 @@
-include_recipe "nginx::php"
+include_recipe "nginx"
 
 portage_package_use "net-analyzer/nagios-plugins" do
   use %w(ldap mysql nagios-dns nagios-ntp nagios-ping nagios-ssh postgres)
@@ -7,11 +7,11 @@ end
 package "net-analyzer/nagios"
 
 include_recipe "nagios"
-include_recipe "nagios::livestatus"
 include_recipe "nagios::nrpe"
 include_recipe "nagios::nsca"
 include_recipe "nagios::splunk"
-include_recipe "nagios::calendar"
+
+package "net-analyzer/mk-livestatus"
 
 directory "/var/nagios/rw" do
   owner "nagios"
@@ -34,8 +34,10 @@ template "/usr/lib/nagios/plugins/notify" do
   mode "0750"
 end
 
+nagios_plugin "check_aggregate"
+
 # retrieve data from the search index
-contacts = node.run_state[:users].select do |u|
+contacts = node.users.select do |u|
   u[:tags] and not (u[:tags] & ["hostmaster", "nagios"]).empty?
 end.sort_by do |u|
   u[:id]
@@ -61,54 +63,36 @@ end
 
 vhosts = hosts.map do |h|
   h[:nagios][:vhosts] rescue []
-end.flatten.compact.map do |v|
+end.flatten.compact.sort.uniq.map do |vhost|
   Chef::Node.new.tap do |n|
     n.chef_environment "production"
-    n.default[:fqdn] = v[:name]
-    n.default[:primary_ipaddress] = v[:name]
+    n.default[:fqdn] = vhost
+    n.default[:ipaddress] = vhost
     n.default[:virtualization] = {}
     n.default[:nagios][:services] = {}
     add_services_for_vhost(n)
   end
 end
 
-hosts = (vhosts + hosts).sort_by do |n|
+hosts = (vhosts + hosts.to_a).sort_by do |n|
   n[:fqdn]
 end
 
-roles = node.run_state[:roles].reject do |r|
-  r.name == "base"
-end.sort_by do |r|
-  r.name
-end
-
 # build hostgroups
-hostgroups = {}
+hostgroups = Hash.new do |hsh, key|
+  hsh[key] = []
+end
 
 hosts.each do |h|
   # group per cluster
-  cluster = h[:cluster][:name] rescue "default"
+  cluster = h.cluster_domain
+  hostgroups[cluster] << h[:fqdn] if !cluster.nil?
 
-  hostgroups[cluster] ||= []
-  hostgroups[cluster] << h[:fqdn]
-
-  # group per role (except base)
-  h.default[:roles] ||= []
-  h[:roles].each do |r|
-    next if r == "base"
-    hostgroups[r] ||= []
+  # group per role
+  (h[:roles] || []).each do |r|
+    next if %w(base smc).include?(r)
+    next if r == h.cluster_name
     hostgroups[r] << h[:fqdn]
-  end
-end
-
-# build service groups
-servicegroups = []
-hosts.each do |h|
-  next unless h[:nagios]
-  h[:nagios][:services].each do |name, params|
-    if params[:servicegroups]
-      servicegroups |= params[:servicegroups].split(",")
-    end
   end
 end
 
@@ -133,32 +117,41 @@ end
 
 # create nagios objects
 nagios_conf "commands"
-
-nagios_conf "templates" do
-  variables :hostmasters => hostmasters
-end
-
-nagios_conf "contacts" do
-  variables :contacts => contacts
-end
-
-nagios_conf "timeperiods" do
-  variables :contacts => contacts
-end
+nagios_conf "contacts"
+nagios_conf "templates"
+nagios_conf "timeperiods"
 
 nagios_conf "hostgroups" do
-  variables :hostgroups => hostgroups
+  variables hostgroups: hostgroups
 end
 
 nagios_conf "servicegroups" do
-  variables :servicegroups => servicegroups
+  variables hosts: hosts
 end
 
 hosts.each do |host|
+  next if host[:fqdn].empty?
   nagios_conf "host-#{host[:fqdn]}" do
     template "host.cfg.erb"
     variables :host => host
   end
+end
+
+ruby_block "cleanup-nagios" do
+  block do
+    Dir["/etc/nagios/objects/host-*.cfg"].each do |f|
+      fqdn = File.basename(f, ".cfg").sub(/host-/, '')
+      next if hosts.any? { |h| h[:fqdn] == fqdn }
+      File.unlink(f)
+    end
+  end
+  only_if do
+    Dir["/etc/nagios/objects/host-*.cfg"].select do |f|
+      fqdn = File.basename(f, ".cfg").sub(/host-/, '')
+      !hosts.any? { |h| h[:fqdn] == fqdn }
+    end.any?
+  end
+  notifies :restart, "service[nagios]"
 end
 
 include_recipe "nagios::extras"
@@ -197,6 +190,11 @@ spawn_fcgi "nagios" do
   })
 end
 
+include_recipe "nginx"
+
+ssl_certificate "/etc/ssl/nginx/nagios" do
+  cn node[:nagios][:certificate]
+end
 
 nginx_server "nagios" do
   template "nginx.conf"
@@ -214,15 +212,15 @@ file "/var/www/localhost/htdocs/index.html" do
   action :delete
 end
 
-template "/usr/share/nagios/htdocs/index.php" do
-  source "index.php"
+template "/usr/share/nagios/htdocs/index.html" do
+  source "index.html"
   owner "nagios"
   group "nagios"
   mode "0644"
 end
 
-cookbook_file "/usr/share/nagios/htdocs/side.php" do
-  source "side.php"
+cookbook_file "/usr/share/nagios/htdocs/side.html" do
+  source "side.html"
   owner "nagios"
   group "nagios"
   mode "0644"

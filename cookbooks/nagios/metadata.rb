@@ -1,16 +1,15 @@
 # encoding: utf-8
 
+name "nagios"
 description "Nagios Is The Industry Standard In IT Infrastructure Monitoring"
 
 maintainer "Benedikt Böhm"
 maintainer_email "bb@xnull.de"
 license "Apache v2.0"
 
-version "6.0.0"
-
 supports "debian"
 supports "gentoo"
 
 depends "nginx"
-depends "splunk"
+depends "splunk6"
 depends "spawn-fcgi"

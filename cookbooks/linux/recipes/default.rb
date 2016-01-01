@@ -2,14 +2,26 @@ if root?
   include_recipe "linux::baselayout"
   include_recipe "linux::locales"
   include_recipe "linux::resolv"
-  include_recipe "linux::sysctl"
   include_recipe "linux::#{node[:platform]}"
-  include_recipe "linux::packages"
-  include_recipe "linux::nagios"
   include_recipe "systemd"
+  include_recipe "linux::sysctl"
+end
 
-  cron_daily "xfs_fsr" do
-    command "/usr/sbin/xfs_fsr -t 600"
-    action :delete if node[:skip][:hardware]
+include_recipe "linux::packages"
+
+if root?
+  include_recipe "linux::nagios"
+  include_recipe "duply"
+
+  duply_backup "etc" do
+    source "/etc"
+  end
+
+  duply_backup "home" do
+    source "/home"
+  end
+
+  duply_backup "root" do
+    source "/root"
   end
 end

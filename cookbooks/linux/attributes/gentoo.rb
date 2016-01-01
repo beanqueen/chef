@@ -1,6 +1,6 @@
 if gentoo?
   # base packages
-  node.set[:packages] = %w(
+  default[:packages] = %w(
     app-admin/apache-tools
     app-admin/pwgen
     app-admin/pydf
@@ -9,7 +9,6 @@ if gentoo?
     app-arch/xz-utils
     app-misc/colordiff
     app-misc/mc
-    app-shells/bash-completion
     app-text/dos2unix
     app-text/tree
     dev-libs/icu
@@ -17,6 +16,9 @@ if gentoo?
     dev-libs/libxml2
     dev-libs/libxslt
     dev-libs/libyaml
+    dev-ruby/yajl-ruby
+    dev-util/ltrace
+    dev-util/perf
     dev-util/strace
     mail-client/mailx
     net-analyzer/bwm-ng
@@ -28,22 +30,31 @@ if gentoo?
     net-analyzer/tcptraceroute
     net-analyzer/traceroute
     net-dns/bind-tools
+    net-misc/ipcalc
     net-misc/keychain
     net-misc/telnet-bsd
     net-misc/whois
-    sys-apps/ack
     sys-apps/dmidecode
+    sys-apps/dstat
     sys-apps/ethtool
     sys-apps/hdparm
     sys-apps/iproute2
     sys-apps/less
     sys-apps/lm_sensors
     sys-apps/lshw
+    sys-apps/net-tools
     sys-apps/pciutils
+    sys-apps/pv
+    sys-apps/the_silver_searcher
+    sys-apps/util-linux
     sys-fs/ncdu
+    sys-libs/libunwind
     sys-power/acpitool
     sys-process/iotop
     sys-process/lsof
+    sys-process/numactl
+    sys-process/procps
+    sys-process/tiptop
   )
 
   # system users and groups

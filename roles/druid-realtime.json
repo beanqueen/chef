@@ -1,0 +1,10 @@
+{
+  "name": "druid-realtime",
+  "run_list": [
+    "role[base]",
+    "role[druid-sources]",
+    "role[druid-storage]",
+    "recipe[hadoop2]",
+    "recipe[druid::realtime]"
+  ]
+}

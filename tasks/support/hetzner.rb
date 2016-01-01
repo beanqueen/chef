@@ -1,21 +1,9 @@
-begin
-  require 'hetzner-api'
-rescue LoadError
-  $stderr.puts "Hetzner API cannot be loaded. Skipping some rake tasks ..."
-end
-
-begin
-  require File.expand_path('config/hetzner', TOPDIR)
-  [HETZNER_API_USERNAME, HETZNER_API_PASSWORD]
-rescue LoadError, Exception
-end
-
 def hetzner
-  @hetzner ||= Hetzner::API.new(HETZNER_API_USERNAME, HETZNER_API_PASSWORD)
+  @hetzner ||= Hetzner::API.new($conf.hetzner.username, $conf.hetzner.password)
 end
 
-def hetzner_server_name_rdns(ip, name, fqdn)
-  return unless ::Module.const_defined?(:HETZNER_API_USERNAME)
+def hetzner_server_name_rdns(ip, fqdn)
+  return unless $conf.hetzner && $conf.hetzner.username
 
   server = hetzner.server?(ip)
 
@@ -24,9 +12,8 @@ def hetzner_server_name_rdns(ip, name, fqdn)
     return
   end
 
-  puts "Setting server name for #{ip} to #{name}"
-  hetzner.server!(ip, server_name: name)
   puts "Setting reverse DNS for #{ip} to #{fqdn}"
+  hetzner.server!(ip, server_name: fqdn)
   hetzner.rdns!(ip, fqdn)
 end
 

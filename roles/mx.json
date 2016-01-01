@@ -1,0 +1,16 @@
+{
+  "name": "mx",
+  "description": "Mail Relay Server",
+  "override_attributes": {
+    "skip": {
+      "postfix_satelite": true
+    },
+    "shorewall": {
+      "clustered": false
+    }
+  },
+  "run_list": [
+    "role[base]",
+    "recipe[postfix::relay]"
+  ]
+}

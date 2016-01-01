@@ -1,13 +1,14 @@
-if gentoo?
+if zentoo?
   # portage package provider will take care of using sudo
   package "dev-ruby/rvm" do
     action :nothing
-  end.run_action(:upgrade)
+  end.run_action(:install)
 else
   # omnibus ruby
   chef_gem 'rvm' do
     action :install
     options "--user-install" if !root?
+    compile_time true
   end
 end
 

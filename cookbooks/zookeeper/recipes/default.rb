@@ -2,6 +2,13 @@ include_recipe "java"
 
 if gentoo?
   package "sys-cluster/zookeeper"
+
+  file "/usr/bin/zk" do
+    content "#!/bin/bash\nexec /opt/zookeeper/bin/zkCli.sh \"$@\"\n"
+    owner "root"
+    group "root"
+    mode "0755"
+  end
 elsif mac_os_x?
   package "zookeeper"
 end
@@ -19,10 +26,6 @@ if root? or mac_os_x?
     notifies :restart, "service[zookeeper]"
   end
 
-  myid = zookeeper_nodes.index do |n|
-    n[:fqdn] == node[:fqdn]
-  end.to_i + 1
-
   template "#{node[:zookeeper][:confdir]}/zoo.cfg" do
     source "zoo.cfg"
     mode "0644"
@@ -30,11 +33,12 @@ if root? or mac_os_x?
   end
 
   directory node[:zookeeper][:datadir] do
+    owner "zookeeper"
     recursive true
   end
 
   file "#{node[:zookeeper][:datadir]}/myid" do
-    content "#{myid}\n"
+    content "#{node[:zookeeper][:myid]}\n"
     mode "0644"
     notifies :restart, "service[zookeeper]"
   end
@@ -46,11 +50,9 @@ if root? or mac_os_x?
     only_if { root? }
   end
 
-  cron "zk-log-clean" do
-    minute "0"
-    hour "3"
-    command "/opt/zookeeper/bin/zkCleanup.sh /var/lib/zookeeper/ -n 5"
-    only_if { root? }
+  systemd_timer "zookeeper-cleanup" do
+    schedule %w(OnCalendar=3:00)
+    unit(command: "#{node[:zookeeper][:bindir]}/zkCleanup.sh #{node[:zookeeper][:datadir]} -n 5")
   end
 end
 
@@ -68,6 +70,11 @@ if nagios_client?
     servicegroups "zookeeper"
   end
 
+  nagios_cluster_service "ZOOKEEPER" do
+    check_command "check_aggregate!ZOOKEEPER-STATUS!0.1!0.3!#{zookeeper_nodes.map(&:fqdn).join(',')}"
+    servicegroups "zookeeper"
+  end
+
   nrpe_command "check_zookeeper_readonly" do
     command "/usr/lib/nagios/plugins/check_zookeeper -m ReadOnly -H localhost"
   end
@@ -79,7 +86,7 @@ if nagios_client?
 
   if zookeeper_nodes.count > 1
     nrpe_command "check_zookeeper_followers" do
-      command "/usr/lib/nagios/plugins/check_zookeeper -m Followers -n #{zookeeper_nodes.map { |n| n[:fqdn] }.join(" -n ")}"
+      command "/usr/lib/nagios/plugins/check_zookeeper -m Followers -n #{zookeeper_nodes.map { |n| n[:ipaddress] }.join(" -n ")}"
     end
 
     nagios_service "ZOOKEEPER-FOLLOWERS" do
@@ -89,8 +96,8 @@ if nagios_client?
 
   {
     :connections => [2000, 3000],
-    :watches => [50000, 100000],
-    :latency => [1000, 2000],
+    :watches => [100000, 200000],
+    :latency => [100, 200],
     :requests => [20, 50],
     :files => [2048, 4096],
   }.each do |mode, threshold|

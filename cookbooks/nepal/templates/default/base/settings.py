@@ -6,7 +6,7 @@ generate_vendor_paths('/usr/lib/nepal')
 from nepal.settings import *
 
 # main IP address
-MAIN_IPADDRESS = '<%= node[:primary_ipaddress] %>'
+MAIN_IPADDRESS = '<%= node[:ipaddress] %>'
 FQDN = '<%= node[:fqdn] %>'
 
 # database configuration
@@ -17,6 +17,7 @@ DATABASE_PASSWORD = '<%= @database_password %>'
 ADMINS = (('hostmaster', '<%= node[:contacts][:hostmaster] %>'),)
 MANAGERS = ADMINS
 DEFAULT_FROM_EMAIL = '<%= node[:contacts][:hostmaster] %>'
+SERVER_EMAIL = '<%= node[:contacts][:hostmaster] %>'
 
 # local time zone for this installation
 TIME_ZONE = '<%= node[:timezone] %>'
@@ -34,6 +35,9 @@ MEDIA_ROOT = '/usr/share/nepal/media/'
 LOCALE_PATHS = ('/usr/share/nepal/locale/',)
 TEMPLATE_DIRS = ('/usr/share/nepal/templates/',)
 NEPALD_LOGFILE = '/srv/system/logs/nepald.log'
+
+# session
+SESSION_COOKIE_SECURE = True
 
 <% if node[:nepal][:debug] %>
 # enable debugging

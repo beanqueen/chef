@@ -8,13 +8,6 @@ action :create do
   path = user[:dir]
   revision = nr.revision || node.chef_environment
 
-  # simple support for vagrant specific branches
-  if vagrant?
-    revision = "vagrant/#{node[:hostname]}"
-    remote = %x(sudo -H -u #{nr.user} git ls-remote --heads #{nr.repository} #{revision}).chomp
-    revision = "production" if remote.empty?
-  end
-
   deploy_branch path do
     repository nr.repository
     revision revision

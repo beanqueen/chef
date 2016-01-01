@@ -12,23 +12,22 @@ if [[ $USER != "root" ]]; then
 fi
 
 # load configuration & run list
-config_name=$1
+node_name=$1
+shift || :
 
-if [[ -z ${config_name} ]]; then
+if [[ -z ${node_name} ]]; then
 	if [[ $USER == "root" ]]; then
-		config_name=$(hostname -f)
+		node_name=$(hostname -f)
 	else
-		config_name=$(whoami)
+		node_name=$(whoami)
 	fi
 fi
 
-if [[ -f config/solo/${config_name}.json ]]; then
-	solo_args="-j config/solo/${config_name}.json"
-else
+if [[ ! -f nodes/${node_name}.json ]]; then
 	if [[ $USER == "root" ]]; then
-		solo_args="-o role[base]"
+		chef_args="-orole[bootstrap]"
 	else
-		solo_args="-o role[workstation]"
+		chef_args="-orole[workstation]"
 	fi
 fi
 
@@ -49,38 +48,34 @@ if [[ -d /Applications ]]; then
 	# disable mac password temporarily
 	$SUDO sed -i -e 's/^%admin.*/%admin ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 
-	if [[ ! -e ~/.storerc ]]; then
-		echo ">>> Please enter you App Store credentials:"
-		read -p 'Apple ID: ' apple_id
-		read -s -p 'Apple Password: ' apple_password
-		echo "${apple_id} ${apple_password}" > ~/.storerc
-		chmod 0400 ~/.storerc
-	fi
-
 	# select the correct xcode version
 	$SUDO "xcode-select" -switch /Applications/Xcode.app/Contents/Developer || exit 1
 
 elif [[ -e /etc/debian_version ]]; then
 	$SUDO apt-get install -y curl whois || exit 1
+elif [[ -e /etc/gentoo-release ]]; then
+	if [[ ! -L /bin/ip ]]; then
+		$SUDO ln -nfs /bin/ip /sbin/ip
+	fi
 fi
 
 # install chef if it is missing
-if ! type -P chef-solo >/dev/null; then
+if ! type -P chef-client >/dev/null; then
 	echo ">>> Trying to install Chef"
 	if [[ -f /etc/gentoo-release ]]; then
 		$SUDO emerge app-admin/chef || exit 1
 	else
-		curl -s -L https://www.opscode.com/chef/install.sh | $SUDO bash || exit 1
+		curl -s -L https://www.opscode.com/chef/install.sh | $SUDO bash -s -- -v 11 || exit 1
 	fi
 fi
 
 # load rvm if available
-if [[ -e ~/.rvm/scripts/rvm ]]; then
+if [[ -z ${rvm_path} && -e ~/.rvm/scripts/rvm ]]; then
 	source ~/.rvm/scripts/rvm
 fi
 
 echo ">>> Running Chef ..."
-$bundle_exec chef-solo -c .chef/solo.rb ${solo_args} || exit 1
+$bundle_exec chef-client -z -c ${PWD}/.chef/config.rb -N ${node_name} ${chef_args} "$@" || exit 1
 
 # re-enable sudo password on mac
 if [[ $USER != "root" ]]; then

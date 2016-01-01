@@ -1,10 +1,13 @@
+*.box
+*.log
 *~
+.DS_Store
 .chef/checksums
 .chef/client.pem
-.chef/knife.rb
+.chef/openssl.cnf
 .kitchen.local.yml
 .kitchen/
 .rake_test_cache
-.vagrant
-config/openssl.cnf
-*.log
+.user
+.zero-knife.rb
+documentation/_build

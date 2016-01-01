@@ -1,11 +1,6 @@
 default[:backup][:encryption_password] = 'sekrit'
 default[:backup][:target_base_url] = "file:///var/backup"
 
-set_unless[:backup][:configs] = Mash.new
-
-node[:backup][:configs].each do |name, params|
-  set[:backup][:configs][name][:name] = name
-  set_unless[:backup][:configs][name][:max_full_backups] = 3
-  set_unless[:backup][:configs][name][:max_full_age] = "1M"
-  set_unless[:backup][:configs][name][:volume_size] = "25"
-end
+# seed with host specific data to make it idempotent
+srand(IPAddr.new(node[:ipaddress]).to_i)
+default[:duply][:backup_time] = "#{rand(2..5)}:#{rand(15..45)}"

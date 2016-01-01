@@ -1,8 +1,46 @@
+include_recipe "debootstrap"
+include_recipe "zfs"
+
 if gentoo?
   package "app-emulation/lxc"
   package "net-misc/bridge-utils"
 elsif debian_based?
   package "lxc"
+  package "bridge-utils"
+end
+
+directory "/lxc" do
+  owner "root"
+  group "root"
+  mode "0755"
+end
+
+cookbook_file "/usr/libexec/lxc/lxc-start" do
+  source "start.sh"
+  owner "root"
+  group "root"
+  mode "0755"
+end
+
+template "/usr/libexec/lxc/lxc-gateway" do
+  source "gateway.sh"
+  owner "root"
+  group "root"
+  mode "0750"
+end
+
+cookbook_file "/etc/lxc/lxc.conf" do
+  source "lxc.conf"
+  owner "root"
+  group "root"
+  mode "0640"
+end
+
+template "/etc/lxc/default.conf" do
+  source "default.conf"
+  owner "root"
+  group "root"
+  mode "0640"
 end
 
 directory "/usr/share/lxc" do
@@ -17,11 +55,25 @@ directory "/usr/share/lxc/templates" do
   mode "0755"
 end
 
-cookbook_file "/usr/share/lxc/templates/lxc-gentoo" do
-  source "lxc-gentoo"
+cookbook_file "/usr/share/lxc/config/common.conf" do
+  source "common.conf"
   owner "root"
   group "root"
-  mode "0755"
+  mode "0644"
+end
+
+%w(gentoo ubuntu).each do |platform|
+  cookbook_file "/usr/share/lxc/templates/lxc-#{platform}" do
+    source "lxc-#{platform}"
+    owner "root"
+    group "root"
+    mode "0755"
+  end
 end
 
 systemd_unit "lxc@.service"
+
+duply_backup "lxc" do
+  source "/lxc"
+  duplicity_params "--exclude-other-filesystems"
+end

@@ -1,29 +1,29 @@
 include_recipe "mysql::server"
 
-# we need this in the base recipe so we can create directories for user apache
-node.default[:apache][:default_vhost] = false
-node.default[:apache][:mpm] = "prefork"
-include_recipe "apache"
-
-# system database
 mysql_password = get_password("mysql/nepal")
 
-mysql_user "nepal" do
+mysql_database_user "nepal" do
+  connection node[:mysql][:connection]
+  host "%"
   password mysql_password
-  force_password true
-end
-
-mysql_grant "nepal" do
-  database "*"
-  user "nepal"
   grant_option true
+  action :grant
 end
 
 mysql_database "nepal" do
-  owner "nepal"
+  connection node[:mysql][:connection]
 end
 
-package "www-apps/nepal"
+portage_overlay "nepal" do
+  repository "https://github.com/hollow/nepal-overlay"
+end
+
+# we need this in the base recipe so we can create directories for user apache
+include_recipe "apache"
+
+package "www-apps/nepal" do
+  action :upgrade
+end
 
 # system directories
 directory "/srv" do
@@ -139,13 +139,16 @@ end
 
 mysql_password = get_password("mysql/roundcube")
 
-mysql_user "roundcube" do
+mysql_database_user "roundcube" do
+  connection node[:mysql][:connection]
+  host "%"
   password mysql_password
-  force_password true
+  database_name "roundcube"
+  action :grant
 end
 
 mysql_database "roundcube" do
-  owner "roundcube"
+  connection node[:mysql][:connection]
 end
 
 execute "roundcube_init" do

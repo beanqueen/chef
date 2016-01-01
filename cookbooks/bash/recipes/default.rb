@@ -1,13 +1,15 @@
 if gentoo?
   package "app-shells/bash"
+  package "app-shells/bash-completion"
 
 elsif debian_based?
   package "bash"
   package "bash-completion"
 
 elsif mac_os_x?
-  package "bash"
-  package "bash-completion"
+  homebrew_package "bash"
+  homebrew_package "bash-completion"
+  execute "sudo dscl . -create /Users/#{node[:current_user]} UserShell '/usr/local/bin/bash'"
 end
 
 directory node[:bash][:rcdir] do
@@ -99,6 +101,7 @@ end
   IP
   copy
   grab
+  mklnx
   mktar
   urlscript
 ).each do |f|

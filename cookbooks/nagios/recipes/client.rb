@@ -1,11 +1,4 @@
 include_recipe "nagios::nrpe"
-include_recipe "nagios::nsca"
-
-if gentoo?
-  package "dev-ruby/nagios" do
-    action :remove
-  end
-end
 
 directory "/usr/lib/ruby/site_ruby" do
   owner "root"
@@ -32,9 +25,15 @@ directory "/usr/lib/ruby/site_ruby/nagios/plugin" do
   mode "0755"
 end
 
-cookbook_file "/usr/lib/ruby/site_ruby/nagios/plugin.rb" do
-  source "plugin.rb"
-  owner "root"
-  group "root"
-  mode "0755"
+%w(
+  plugin
+  section
+  status
+).each do |f|
+  cookbook_file "/usr/lib/ruby/site_ruby/nagios/#{f}.rb" do
+    source "nagios/#{f}.rb"
+    owner "root"
+    group "root"
+    mode "0755"
+  end
 end

@@ -10,36 +10,47 @@ echo "127.0.0.1 ${hostname}.${domainname} ${hostname} localhost" > /etc/hosts
 echo ${hostname} > /etc/hostname
 hostname ${hostname}
 
-aptitude update
-aptitude upgrade -y
+apt-get update
+apt-get upgrade -y
 
-echo "deb http://deb.bearstech.com/squeeze ruby-1.9.3/" > /etc/apt/sources.list.d/ruby1.9.3.list
-apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
-aptitude update
-apt-get install -y --force-yes ruby1.9.3 build-essential wget
-
-gem install ohai ruby-shadow --no-rdoc --no-ri --verbose
-gem install chef --no-rdoc --no-ri --verbose <%= bootstrap_version_string %>
+if ! type -P chef-client >/dev/null; then
+	curl -s -L https://www.opscode.com/chef/install.sh | $SUDO bash || exit 1
+fi
 
 # remove some hetzner cruft
 rm -f /root/.{profile,bash_profile,bashrc}
 
-mkdir -p /etc/chef /var/log/chef /var/lib/chef
+mkdir -p /etc/chef /var/lib/chef
 
-(
-cat <<'EOP'
+cat > /etc/chef/validation.pem <<'EOP'
 <%= validation_key %>
 EOP
-) > /tmp/validation.pem
-awk NF /tmp/validation.pem > /etc/chef/validation.pem
-rm /tmp/validation.pem
 chmod 0600 /etc/chef/validation.pem
 
-(
-cat <<'EOP'
+<% if encrypted_data_bag_secret -%>
+cat > /etc/chef/encrypted_data_bag_secret <<'EOP'
+<%= encrypted_data_bag_secret %>
+EOP
+chmod 0600 /etc/chef/encrypted_data_bag_secret
+<% end -%>
+
+<%# Generate Ohai Hints -%>
+<% unless @chef_config[:knife][:hints].nil? || @chef_config[:knife][:hints].empty? -%>
+mkdir -p /etc/chef/ohai/hints
+
+<% @chef_config[:knife][:hints].each do |name, hash| -%>
+cat > /etc/chef/ohai/hints/<%= name %>.json <<'EOP'
+<%= hash.to_json %>
+EOP
+<% end -%>
+<% end -%>
+
+cat > /etc/chef/client.rb <<'EOP'
 <%= config_content %>
 EOP
-) > /etc/chef/client.rb
 
-chef-client
-chef-client'
+cat > /etc/chef/first-boot.json <<'EOP'
+<%= first_boot.to_json %>
+EOP
+
+<%= start_chef %>'

@@ -1,5 +1,8 @@
 if root?
-  hostmaster_groups = %w(adm cron)
+  include_recipe "nss"
+  include_recipe "sudo"
+
+  hostmaster_groups = %w(adm)
 
   if gentoo?
     hostmaster_groups += %w(portage wheel systemd-journal)
@@ -10,7 +13,7 @@ if root?
   end
 
   # create accounts from databags
-  node.run_state[:users].select do |user|
+  node.users.select do |user|
     if user[:tags] && user[:tags].include?("hostmaster")
       true
     elsif user[:nodes] && user[:nodes][node[:fqdn]]
@@ -26,8 +29,9 @@ if root?
     tags.flatten!.compact!
 
     account_skeleton user[:id] do
-      user.keys.each do |key, value|
+      user.each do |key, value|
         next if [:id, :name].include?(key.to_sym)
+        next unless respond_to?(key.to_sym)
         send(key.to_sym, value) if value
       end
       groups hostmaster_groups if tags.include?("hostmaster")
