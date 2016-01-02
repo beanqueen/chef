@@ -2,21 +2,23 @@ node[:packages].each do |pkg|
   package pkg
 end
 
-file "/.agignore" do
-  content([
-    "dev/",
-    "proc/",
-    "run/",
-    "sys/",
-    "tmp/",
-    "var/lib/chef/backup",
-    "var/lib/syslog-ng/syslog-ng.ctl",
-    "var/log/",
-    "var/spool/",
-  ].join("\n"))
-  owner "root"
-  group "root"
-  mode "0644"
+if root?
+  file "/.agignore" do
+    content([
+      "dev/",
+      "proc/",
+      "run/",
+      "sys/",
+      "tmp/",
+      "var/lib/chef/backup",
+      "var/lib/syslog-ng/syslog-ng.ctl",
+      "var/log/",
+      "var/spool/",
+    ].join("\n"))
+    owner "root"
+    group "root"
+    mode "0644"
+  end
 end
 
 if systemd_running?

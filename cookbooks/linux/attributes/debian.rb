@@ -1,7 +1,6 @@
 # base packages
 if debian_based?
   default[:packages] = %w(
-    ack
     acpitool
     apache2-utils
     atool
@@ -37,7 +36,8 @@ if debian_based?
     pwgen
     pydf
     realpath
-    ruby1.9.3
+    ruby
+    silversearcher-ag
     strace
     sysstat
     tcpdump
